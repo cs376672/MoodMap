@@ -1,5 +1,6 @@
+import { useState, useEffect } from 'react'
 import { usePlannerStore } from './store/plannerStore'
-import { Loader2, RefreshCw, Plus, Minus, Check } from 'lucide-react'
+import { Loader2, RefreshCw, Plus, Minus, Check, Share2 } from 'lucide-react'
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps'
 import { COUNTRIES, MOOD_KEYWORDS } from './data/travelOptions'
 import EarthGlobe from './components/EarthGlobe'
@@ -14,6 +15,44 @@ function App() {
     highlightedSpotIndex, setHighlightedSpotIndex,
     resetPlanner
   } = usePlannerStore()
+
+  const [showShareToast, setShowShareToast] = useState(false)
+
+  const handleShare = () => {
+    if (!itinerary) return;
+    try {
+      const serialized = btoa(unescape(encodeURIComponent(JSON.stringify(itinerary))));
+      const shareUrl = `${window.location.origin}${window.location.pathname}#share=${serialized}`;
+      navigator.clipboard.writeText(shareUrl).then(() => {
+        setShowShareToast(true);
+        setTimeout(() => setShowShareToast(false), 3000);
+      });
+    } catch (err) {
+      console.error('Failed to generate share link:', err);
+    }
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith('#share=')) {
+        const shareCode = hash.substring(7);
+        try {
+          const decodedJSON = decodeURIComponent(escape(atob(shareCode)));
+          const sharedItinerary = JSON.parse(decodedJSON);
+          if (sharedItinerary && sharedItinerary.schedule) {
+            usePlannerStore.setState({ itinerary: sharedItinerary });
+          }
+        } catch (err) {
+          console.error('Failed to parse shared itinerary:', err);
+        }
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const currentCountry = COUNTRIES.find(c => c.id === countryId);
   const currentRegion = currentCountry?.regions.find(r => r.id === regionId);
@@ -205,14 +244,41 @@ function App() {
               </>
             ) : (
               <div className="animate-in fade-in slide-in-from-left-4 duration-700 bg-neutral-900/80 backdrop-blur-xl border border-white/10 p-6 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)]">
-                <div className="space-y-2 mb-8 flex justify-between items-start">
+                <div className="space-y-2 mb-6 flex justify-between items-start">
                   <div>
                       <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-300 to-purple-300 bg-clip-text text-transparent">
                       {itinerary.trip_title}
                       </h1>
-                      <p className="text-neutral-300 mt-1">당신만을 위한 맞춤형 테마 여정이 준비되었습니다.</p>
+                      <p className="text-neutral-300 mt-1 text-sm">당신만을 위한 맞춤형 테마 여정이 준비되었습니다.</p>
                   </div>
-                  <button onClick={() => window.location.reload()} className="text-sm text-neutral-400 hover:text-white transition-colors bg-white/5 px-3 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 shrink-0">다시 시작</button>
+                  <button 
+                    onClick={() => {
+                      window.location.hash = '';
+                      resetPlanner();
+                    }} 
+                    className="text-xs text-neutral-400 hover:text-white transition-colors bg-white/5 px-2.5 py-1.5 rounded-lg border border-white/10 hover:bg-white/10 shrink-0"
+                  >
+                    다시 시작
+                  </button>
+                </div>
+
+                {/* 공유하기 바 (검은칸 바로밑에라인에 공유버튼 세팅) */}
+                <div className="mb-6 p-4 bg-neutral-950/60 border border-white/10 rounded-2xl flex flex-col gap-2 transition-all">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-medium text-neutral-300">이 일정을 다른 사람과 공유해보세요!</span>
+                    <button 
+                      onClick={handleShare}
+                      className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold py-2 px-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(99,102,241,0.3)] shrink-0 active:scale-95 flex-row"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      일정 공유
+                    </button>
+                  </div>
+                  {showShareToast && (
+                    <div className="text-[11px] text-indigo-400 font-semibold animate-in fade-in slide-in-from-top-1 duration-300 text-right">
+                      ✓ 링크가 복사되었습니다! SNS나 메신저에 공유하세요.
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-10 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-indigo-500/50 before:to-transparent">
