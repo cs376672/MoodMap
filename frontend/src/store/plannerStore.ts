@@ -2,6 +2,15 @@ import { create } from 'zustand'
 import { COUNTRIES, MOOD_KEYWORDS } from '../data/travelOptions'
 import { REAL_SPOTS, type SpotData } from '../data/mockSpots'
 
+export interface Alternative {
+  name: string;
+  reason: string;
+  latitude: number;
+  longitude: number;
+  description: string;
+  mood_bgm?: string;
+}
+
 export interface Spot {
   spot_id: string;
   time?: string;
@@ -10,10 +19,7 @@ export interface Spot {
   longitude: number;
   description: string;
   mood_bgm?: string;
-  alternatives?: {
-    name: string;
-    reason: string;
-  }[];
+  alternatives?: Alternative[];
 }
 
 export interface DaySchedule {
@@ -204,6 +210,45 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
 
     const optimizedDays = days.map(optimizeDayPath);
 
+    // 5. 실존 대안 명소 탐색을 위한 거리 포맷터 및 대안 추출기
+    const getFormattedDistance = (s1: { lat: number; lng: number }, s2: { lat: number; lng: number }) => {
+      const latDiff = (s1.lat - s2.lat) * 111;
+      const lngDiff = (s1.lng - s2.lng) * 88;
+      const dist = Math.sqrt(latDiff * latDiff + lngDiff * lngDiff);
+      if (dist < 1) {
+        return `${Math.round(dist * 1000)}m`;
+      }
+      return `${dist.toFixed(1)}km`;
+    };
+
+    const allItinerarySpotNames = new Set(selectedSpots.map(sp => sp.name));
+
+    const getAlternativesForSpot = (s: SpotData) => {
+      // 1차 후보군: 현재 일정에 아예 할당되지 않은 실제 명소들
+      let candidates = rawSpots.filter(sp => !allItinerarySpotNames.has(sp.name));
+      
+      // 만약 미사용 명소가 너무 부족하면, 현재 명소만 제외하고 도시 내 전체 명소 중 탐색
+      if (candidates.length < 2) {
+        candidates = rawSpots.filter(sp => sp.name !== s.name);
+      }
+
+      // 거리 순서대로 정렬
+      const sortedCandidates = [...candidates].sort((a, b) => getDistance(s, a) - getDistance(s, b));
+
+      // 최대 2개의 대안 명소 정보 생성
+      return sortedCandidates.slice(0, 2).map(altSpot => {
+        const distStr = getFormattedDistance(s, altSpot);
+        return {
+          name: altSpot.name,
+          latitude: altSpot.lat,
+          longitude: altSpot.lng,
+          description: `[AI 대안 추천] 원래 일정 대신 방문하기 좋은 '${altSpot.name}'입니다. ${altSpot.desc}`,
+          reason: `'${s.name}'에서 약 ${distStr} 거리에 위치한 인근 대안 장소입니다.`,
+          mood_bgm: `추천 BGM: Smooth Lounge`
+        };
+      });
+    };
+
     const dynamicItinerary: Itinerary = {
       trip_title: `${d} ${keywordsText} 테마 투어 ✨`,
       schedule: optimizedDays.map((daySpots, i) => {
@@ -222,9 +267,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
               longitude: s1.lng,
               description: `아침의 첫 일정은 '${s1.name}'입니다. ${s1.desc} 선택하신 [${keywordsText}] 테마에 어울리는 시작입니다.`,
               mood_bgm: `추천 BGM: Morning Acoustic`,
-              alternatives: [
-                { name: `${d} 로컬 핫플 탐방`, reason: "아침의 활기찬 에너지를 느끼고 싶으실 때 추천합니다." }
-              ]
+              alternatives: getAlternativesForSpot(s1)
             },
             {
               spot_id: `spot_${i}_2`,
@@ -233,9 +276,8 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
               latitude: s2.lat,
               longitude: s2.lng,
               description: `오후 코스는 '${s2.name}'입니다. ${s2.desc} 가장 활발한 시간대에 방문하기 완벽합니다.`,
-              alternatives: [
-                { name: `${d} 숨겨진 골목길`, reason: "사람이 많은 곳을 피해 조용하게 쉬고 싶을 때 좋습니다." }
-              ]
+              mood_bgm: `추천 BGM: Afternoon Jazz`,
+              alternatives: getAlternativesForSpot(s2)
             },
             {
               spot_id: `spot_${i}_3`,
@@ -244,14 +286,13 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
               latitude: s3.lat,
               longitude: s3.lng,
               description: `아름다운 야경과 함께하는 저녁 일정, '${s3.name}'입니다. ${s3.desc} 하루의 피로를 풀며 로맨틱한 시간을 보내세요.`,
-              alternatives: [
-                { name: `${d} 로컬 심야 펍`, reason: "현지인들과 어울려 가볍고 신나게 한잔하고 싶을 때 완벽합니다." }
-              ]
+              mood_bgm: `추천 BGM: Night City Pop`,
+              alternatives: getAlternativesForSpot(s3)
             }
           ]
         };
       })
-    }
+    };
     
     set({ isGenerating: false, itinerary: dynamicItinerary })
   },
@@ -266,9 +307,31 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     if (spot.alternatives && spot.alternatives[altIndex]) {
       const alternatives = [...spot.alternatives];
       const alt = { ...alternatives[altIndex] };
-      const oldName = spot.name;
+      
+      // 명소 정보와 대안 명소 정보를 서로 완전 맞교환 (Swap)
+      const temp = {
+        name: spot.name,
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        description: spot.description,
+        mood_bgm: spot.mood_bgm
+      };
+      
       spot.name = alt.name;
-      alt.name = oldName;
+      spot.latitude = alt.latitude;
+      spot.longitude = alt.longitude;
+      spot.description = alt.description;
+      spot.mood_bgm = alt.mood_bgm || spot.mood_bgm;
+      
+      alt.name = temp.name;
+      alt.latitude = temp.latitude;
+      alt.longitude = temp.longitude;
+      alt.description = temp.description;
+      alt.mood_bgm = temp.mood_bgm;
+      
+      // 대안 명소 카드를 재클릭했을 때 원래대로 되돌아갈 수 있도록 안내 메시지 동적 업데이트
+      alt.reason = `현재 설정된 '${spot.name}' 대신 원래 일정이었던 '${alt.name}'(으)로 다시 변경합니다.`;
+      
       alternatives[altIndex] = alt;
       spot.alternatives = alternatives;
     }
