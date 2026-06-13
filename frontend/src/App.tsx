@@ -27,7 +27,7 @@ function App() {
           <EarthGlobe isGenerating={isGenerating} targetCoords={targetCoords} />
         ) : (
           <div className="w-full h-full bg-neutral-900 relative animate-in fade-in duration-1000">
-            <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITEGOOGLE_MAPS_API_KEY || ""} language="ko" region="KR">
+            <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY || import.meta.env.VITEGOOGLE_MAPS_API_KEY || import.meta.env.GOOGLE_MAPS_API_KEY || ""} language="ko" region="KR">
               <Map 
                 defaultZoom={12} 
                 defaultCenter={{ lat: itinerary.schedule[0]?.spots[0]?.latitude || 35.6895, lng: itinerary.schedule[0]?.spots[0]?.longitude || 139.6917 }}
