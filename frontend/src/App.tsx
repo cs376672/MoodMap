@@ -47,15 +47,26 @@ function App() {
                       title={spot.name}
                       zIndex={isHighlighted ? 100 : 1}
                     >
-                      <div 
-                        className={`flex items-center justify-center rounded-full shadow-lg border-2 border-neutral-900 font-bold transition-all duration-300 ${
-                          isHighlighted 
-                            ? 'bg-indigo-400 text-white w-12 h-12 text-lg shadow-[0_0_20px_rgba(129,140,248,0.8)] scale-110 animate-bounce' 
-                            : 'bg-indigo-600/90 text-white w-9 h-9 text-sm hover:scale-110'
-                        }`}
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${spot.latitude},${spot.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHighlightedSpotIndex(globalIndex);
+                        }}
+                        className="no-underline block"
                       >
-                         {globalIndex}
-                      </div>
+                        <div 
+                          className={`flex items-center justify-center rounded-full shadow-lg border-2 border-neutral-900 font-bold transition-all duration-300 ${
+                            isHighlighted 
+                              ? 'bg-indigo-400 text-white w-12 h-12 text-lg shadow-[0_0_20px_rgba(129,140,248,0.8)] scale-110 animate-bounce' 
+                              : 'bg-indigo-600/90 text-white w-9 h-9 text-sm hover:scale-110'
+                          }`}
+                        >
+                           {globalIndex}
+                        </div>
+                      </a>
                     </AdvancedMarker>
                   )})
                 )}
@@ -217,17 +228,22 @@ function App() {
                           const globalIndex = dIdx * 3 + sIdx + 1;
                           return (
                           <div key={spot.spot_id} className="relative flex items-start group">
-                            <button 
-                              onClick={() => setHighlightedSpotIndex(highlightedSpotIndex === globalIndex ? null : globalIndex)}
-                              className={`flex items-center justify-center w-10 h-10 rounded-full border bg-neutral-950 shadow-[0_0_15px_rgba(99,102,241,0.3)] font-bold shrink-0 z-10 transition-all hover:scale-110 ml-0 mr-4 mt-1 cursor-pointer ${
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${spot.latitude},${spot.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => {
+                                setHighlightedSpotIndex(highlightedSpotIndex === globalIndex ? null : globalIndex);
+                              }}
+                              className={`flex items-center justify-center w-10 h-10 rounded-full border bg-neutral-950 shadow-[0_0_15px_rgba(99,102,241,0.3)] font-bold shrink-0 z-10 transition-all hover:scale-110 ml-0 mr-4 mt-1 cursor-pointer no-underline ${
                                 highlightedSpotIndex === globalIndex 
                                   ? 'border-indigo-400 text-white bg-indigo-600 scale-110 ring-2 ring-indigo-400 ring-offset-2 ring-offset-black' 
                                   : 'border-indigo-500/50 text-indigo-400'
                               }`}
-                              title="클릭하여 지도에서 위치 확인"
+                              title="클릭하여 구글 지도에서 위치 보기 (새 창)"
                             >
                               {globalIndex}
-                            </button>
+                            </a>
                             
                             <div className="w-[calc(100%-3.5rem)] bg-neutral-950/60 border border-white/10 p-5 rounded-2xl shadow-xl space-y-3 hover:border-indigo-500/40 hover:bg-neutral-900/80 transition-all">
                               <div>
