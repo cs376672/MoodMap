@@ -30,6 +30,7 @@ export interface DaySchedule {
 export interface Itinerary {
   trip_title: string;
   schedule: DaySchedule[];
+  region_name?: string;
 }
 
 interface PlannerState {
@@ -251,6 +252,7 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
 
     const dynamicItinerary: Itinerary = {
       trip_title: `${d} ${keywordsText} 테마 투어 ✨`,
+      region_name: d,
       schedule: optimizedDays.map((daySpots, i) => {
         const s1 = daySpots[0] || { name: '미정', lat: baseLat, lng: baseLng, desc: '', keywords: [] };
         const s2 = daySpots[1] || s1;

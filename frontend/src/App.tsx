@@ -80,6 +80,8 @@ function App() {
                   day.spots.map((spot, sIdx) => {
                     const globalIndex = dIdx * 3 + sIdx + 1;
                     const isHighlighted = highlightedSpotIndex === globalIndex;
+                    const regionName = itinerary.region_name || itinerary.trip_title.split(' ')[0] || '';
+                    const queryText = regionName ? `${regionName} ${spot.name}` : spot.name;
                     return (
                     <AdvancedMarker 
                       key={spot.spot_id} 
@@ -88,7 +90,7 @@ function App() {
                       zIndex={isHighlighted ? 100 : 1}
                     >
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${spot.latitude},${spot.longitude}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(queryText)}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => {
